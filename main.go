@@ -258,12 +258,10 @@ func getScrapeClient(proxyString interface{}) *http.Client {
 	switch v := proxyString.(type) {
 
 	case string:
-		proxyURL, _ := url.Parse(v)
-		return &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
-
+		proxyUrl, _ := url.Parse(v)
+		return &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)}}
 	default:
 		return &http.Client{}
-
 	}
 }
 
@@ -273,9 +271,8 @@ func scrapeClientRequest(searchURL string, proxyString interface{}) (*http.Respo
 	req.Header.Set("User-Agent", randomUserAgent())
 
 	res, err := baseClient.Do(req)
-
-	if req.Response.StatusCode != 200 {
-		err := fmt.Errorf("Scraper recieved non 200 status code")
+	if res.StatusCode != 200 {
+		err := fmt.Errorf("scraper received a non-200 status code suggesting a ban")
 		return nil, err
 	}
 
@@ -283,28 +280,29 @@ func scrapeClientRequest(searchURL string, proxyString interface{}) (*http.Respo
 		return nil, err
 	}
 	return res, nil
-
 }
 
 func googleResultParsing(response *http.Response, rank int) ([]SearchResult, error) {
 	doc, err := goquery.NewDocumentFromResponse(response)
+
 	if err != nil {
 		return nil, err
 	}
+
 	results := []SearchResult{}
 	sel := doc.Find("div.g")
 	rank++
 	for i := range sel.Nodes {
 		item := sel.Eq(i)
-		linktag := item.Find("a")
-		link, _ := linktag.Attr("href")
+		linkTag := item.Find("a")
+		link, _ := linkTag.Attr("href")
 		titleTag := item.Find("h3.r")
 		descTag := item.Find("span.st")
 		desc := descTag.Text()
 		title := titleTag.Text()
 		link = strings.Trim(link, " ")
 
-		if link != "" && link != "#" && strings.HasPrefix(link, "/") {
+		if link != "" && link != "#" && !strings.HasPrefix(link, "/") {
 			result := SearchResult{
 				rank,
 				link,
@@ -313,11 +311,10 @@ func googleResultParsing(response *http.Response, rank int) ([]SearchResult, err
 			}
 			results = append(results, result)
 			rank++
-
 		}
-
 	}
 	return results, err
+
 }
 
 func GoogleScrape(searchTerm string, languageCode string, proxyString interface{}, countryCode string, pages int, count int) ([]SearchResult, error) {
@@ -348,7 +345,7 @@ func GoogleScrape(searchTerm string, languageCode string, proxyString interface{
 }
 
 func main() {
-	results, err := GoogleScrape("sagar hande", "en", nil, "com", 1, 30)
+	results, err := GoogleScrape("sagar hande", "en", nil, "com", 1, 20)
 
 	if err == nil {
 		for _, res := range results {
